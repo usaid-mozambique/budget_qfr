@@ -7,22 +7,22 @@ SUBOBLIGATION_SUMMARY_PATH <-  "Data/subobligation_summary/"
 AWARDS_PATH <- "Data/active_awards/"
 PHOENIX_TRANSACTION_PATH <- "Data/phoenix_transactions/"
 PHOENIX_PIPELINE_PATH <- "Data/phoenix_pipeline/"
-#CLOSE_OUT_TRACKER_PATH <- "Data/close_out_tracker/"
+CLOSE_OUT_TRACKER_PATH <- "Data/close_out_tracker/"
 
 #FILTERS ------------------------------------------------
 EVENT_TYPE_FILTER <- c("OBLG_UNI", "OBLG_SUBOB")
 DISTRIBUTION_FILTER <- c("656-M", "656-GH-M", "656-W", "656-GH-W")
 REMOVE_AWARDS <- c("MEL")
 
-#vars_new_doag <- c(
-#    "656-DOAG-656-22-020-DRG",
-#    "656-DOAG-656-22-019-EDU",
-#    "656-DOAG-656-22-019-IH",
-#    "656-DOAG-656-22-021-NUT",
-#    "656-DOAG-656-22-020-EG",
-#    "656-DOAG-656-22-021-ENV",
-#    "656-DOAG-656-22-021-WASH"
-#)
+vars_new_doag <- c(
+    "656-DOAG-656-22-020-DRG",
+    "656-DOAG-656-22-019-EDU",
+    "656-DOAG-656-22-019-IH",
+    "656-DOAG-656-22-021-NUT",
+    "656-DOAG-656-22-020-EG",
+    "656-DOAG-656-22-021-ENV",
+    "656-DOAG-656-22-021-WASH"
+)
 #TODO remove if start date is after the quarter  
 
 #READ ALL FUNCTIONS ------------------------------------'
@@ -46,7 +46,12 @@ active_awards_df <- map(awards_input_file, ~blingr::clean_awards(.x, "Active Awa
 write_csv(active_awards_df, "Dataout/new_active_awards.csv")
 
 
+#2. Expired awards - maintained locally in same google sheet as active awards-----------------------
 
+expired_awards_df <- map(awards_input_file, ~blingr::clean_awards(.x, "Expired Awards")) |> 
+    bind_rows() 
+
+write_csv(expired_awards_df, "Dataout/new_expired_awards.csv")
 
 #3. List of all awards to pull from Phoenix Data ----------------------------
 #all active award IDs
@@ -55,8 +60,13 @@ active_award_number <- active_awards_df |>
     distinct() |> 
     pull()
 
+expired_award_number <- expired_awards_df |> 
+    select(award_number) |> 
+    distinct() |> 
+    pull()
 
-
+#total list of active and expired awards
+all_award_number <- c(active_award_number, expired_award_number)
 
 
 #4. Subobligation Summary - maintained locally by team---------------------
@@ -68,11 +78,21 @@ sub_obligation_input_file <- dir(SUBOBLIGATION_SUMMARY_PATH,
 
 subobligation_summary_df <- map(sub_obligation_input_file, blingr::clean_subobligation_summary) |> 
     bind_rows() |> 
-mutate(active_awards_fiscal_year = as.numeric(str_extract(period, "(?<=FY)[0-9]{2}")) + 2000)
+    mutate(active_awards_fiscal_year = as.numeric(str_extract(period, "(?<=FY)[0-9]{2}")) + 2000)
 
 write_csv(subobligation_summary_df, "Dataout/new_subobligation_summary.csv")
 
 
+#5. Close out tracker - maintained locally by team------
+
+close_out_tracker_input_file <- dir(CLOSE_OUT_TRACKER_PATH,
+                                    full.name = TRUE,
+                                    pattern = "*.xlsx")
+
+close_out_tracker_df <- map(close_out_tracker_input_file, blingr::clean_close_out_tracker) |> 
+    bind_rows() 
+
+write_csv(close_out_tracker_df, "Dataout/new_close_out_tracker.csv")
 
 #6. Phoenix Transaction--------------
 
@@ -82,8 +102,8 @@ phoenix_transaction_input_file <- dir(PHOENIX_TRANSACTION_PATH,
 
 
 phoenix_transaction_df <- map(phoenix_transaction_input_file, 
-                              ~blingr::clean_phoenix_transaction(.x, active_award_number,
-                                                          DISTRIBUTION_FILTER)) |> 
+                              ~blingr::clean_phoenix_transaction(.x, all_award_number,
+                                                                 DISTRIBUTION_FILTER)) |> 
     bind_rows() |> 
     select(-program_area_name, -transaction_date_month) |> 
     group_by(award_number, fiscal_year, fiscal_quarter, period, program_area) |>
@@ -105,7 +125,7 @@ phoenix_pipeline_input_file <- dir(PHOENIX_PIPELINE_PATH,
                                    pattern = "*.xlsx")
 
 phoenix_pipeline_df <- map(phoenix_pipeline_input_file, 
-                           ~blingr::clean_phoenix_pipeline(.x, active_award_number, 
+                           ~blingr::clean_phoenix_pipeline(.x, all_award_number, 
                                                            EVENT_TYPE_FILTER,
                                                            DISTRIBUTION_FILTER)) |>
     bind_rows()
@@ -125,3 +145,8 @@ write_csv(pipeline_dataset,"Dataout/pipeline.csv")
 #2. Transaction -------------------
 transaction_dataset <- create_transaction_dataset()
 write_csv(transaction_dataset, "Dataout/transaction.csv")
+
+
+#3. Expired Awards (one rows per award, per quarter)-------------
+expired_awards_dataset <- create_expired_awards_dataset()
+write_csv(expired_awards_dataset, "Dataout/expired_awards.csv")
