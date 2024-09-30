@@ -12,7 +12,7 @@ if(length(missing_packages) >0){
 
 library(glamr)
 
-# OTHER SETUP  - only run one-time ------------------------------------------
+# OTHER SETUP  - only run one-time --------------------------------------
 
 folder_setup() 
 folder_setup(folder_list = list("Data/subobligation_summary", 
