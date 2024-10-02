@@ -1,6 +1,7 @@
 library(tidyverse)
 library(blingr)
 
+options(scipen = 999)  #remove scientific notation
 
 # FOLDER PATHS-------------------------
 SUBOBLIGATION_SUMMARY_PATH <-  "Data/subobligation_summary/"
@@ -114,7 +115,8 @@ phoenix_transaction_df <- map(phoenix_transaction_input_file,
 write_csv(phoenix_transaction_df, "Dataout/new_phoenix_transaction.csv")
 
 phoenix_transaction_cumulative_df <- phoenix_transaction_df |> 
-    blingr::create_phoenix_transaction_cumulative()
+    blingr::create_phoenix_transaction_cumulative()|> 
+    mutate(cumulative_transaction_disbursement_fy = round(cumulative_transaction_disbursement_fy, 2))  #round to 2 decimal places
 
 
 
