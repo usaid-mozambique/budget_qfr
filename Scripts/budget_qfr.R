@@ -42,8 +42,7 @@ sub_obligation_input_file <- dir(SUBOBLIGATION_SUMMARY_PATH,
 
 
 subobligation_summary_df <- map(sub_obligation_input_file, blingr::clean_subobligation_summary) |> 
-    bind_rows() # |> 
-#    mutate(active_awards_fiscal_year = as.numeric(str_extract(period, "(?<=FY)[0-9]{2}")) + 2000)
+    bind_rows() 
 
 
 #6. Phoenix Transaction--------------
