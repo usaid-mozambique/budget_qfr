@@ -14,26 +14,11 @@ EVENT_TYPE_FILTER <- c("OBLG_UNI", "OBLG_SUBOB")
 DISTRIBUTION_FILTER <- c("656-M", "656-GH-M", "656-W", "656-GH-W")
 REMOVE_AWARDS <- c("MEL")
 
-#vars_new_doag <- c(
-#    "656-DOAG-656-22-020-DRG",
-#    "656-DOAG-656-22-019-EDU",
-#    "656-DOAG-656-22-019-IH",
-#    "656-DOAG-656-22-021-NUT",
-#    "656-DOAG-656-22-020-EG",
-#    "656-DOAG-656-22-021-ENV",
-#    "656-DOAG-656-22-021-WASH"
-#)
-#TODO remove if start date is after the quarter  
-
-#READ ALL FUNCTIONS ------------------------------------'
-
-source("Scripts/utilities.R")
-
 
 #READ AND CLEAN ALL DATA ---------------------------------------------
 #1. Active Awards - maintained locally-----------------------
 
-
+#TODO remove if start date is after the quarter  
 awards_input_file <- dir(AWARDS_PATH,
                          full.name = TRUE,
                          pattern = "*.xlsx")
@@ -42,31 +27,12 @@ active_awards_df <- map(awards_input_file, ~blingr::clean_awards(.x, "Active Awa
     bind_rows() |> 
     filter(!str_detect(activity_name, paste(REMOVE_AWARDS, collapse = "|"))) 
 
-
-#write_csv(active_awards_df, "Dataout/new_active_awards.csv")
-
-
-#2. Expired awards - maintained locally in same google sheet as active awards-----------------------
-
-#expired_awards_df <- map(awards_input_file, ~blingr::clean_awards(.x, "Expired Awards")) |> 
-#    bind_rows() 
-
-#write_csv(expired_awards_df, "Dataout/new_expired_awards.csv")
-
 #3. List of all awards to pull from Phoenix Data ----------------------------
 #all active award IDs
-active_award_number <- active_awards_df |> 
+all_award_number <- active_awards_df |> 
     select(award_number) |> 
     distinct() |> 
     pull()
-
-#expired_award_number <- expired_awards_df |> 
-#    select(award_number) |> 
-#    distinct() |> 
-#    pull()
-
-#total list of active and expired awards
-all_award_number <- unique(c(active_award_number))
 
 #4. Subobligation Summary - maintained locally by team---------------------
 
@@ -76,22 +42,9 @@ sub_obligation_input_file <- dir(SUBOBLIGATION_SUMMARY_PATH,
 
 
 subobligation_summary_df <- map(sub_obligation_input_file, blingr::clean_subobligation_summary) |> 
-    bind_rows() |> 
-    mutate(active_awards_fiscal_year = as.numeric(str_extract(period, "(?<=FY)[0-9]{2}")) + 2000)
+    bind_rows() # |> 
+#    mutate(active_awards_fiscal_year = as.numeric(str_extract(period, "(?<=FY)[0-9]{2}")) + 2000)
 
-#write_csv(subobligation_summary_df, "Dataout/new_subobligation_summary.csv")
-
-
-#5. Close out tracker - maintained locally by team------
-
-#close_out_tracker_input_file <- dir(CLOSE_OUT_TRACKER_PATH,
-#                                    full.name = TRUE,
-#                                    pattern = "*.xlsx")
-
-#close_out_tracker_df <- map(close_out_tracker_input_file, blingr::clean_close_out_tracker) |> 
-#    bind_rows() 
-
-#write_csv(close_out_tracker_df, "Dataout/new_close_out_tracker.csv")
 
 #6. Phoenix Transaction--------------
 
@@ -110,14 +63,6 @@ phoenix_transaction_df <- map(phoenix_transaction_input_file,
     dplyr::summarise(dplyr::across(dplyr::where(is.numeric), ~ sum(., na.rm = TRUE)), .groups = "drop")
 
 
-#write_csv(phoenix_transaction_df, "Dataout/new_phoenix_transaction.csv")
-
-#phoenix_transaction_cumulative_df <- phoenix_transaction_df #|> 
- #   blingr::create_phoenix_transaction_cumulative()|> 
- #   mutate(cumulative_transaction_disbursement_fy = round(cumulative_transaction_disbursement_fy, 2))  #round to 2 decimal places
-
-
-
 #7. Phoenix pipeline -------------------------
 
 phoenix_pipeline_input_file <- dir(PHOENIX_PIPELINE_PATH,
@@ -134,7 +79,6 @@ phoenix_pipeline_df <- map(phoenix_pipeline_input_file,
     summarise(across(where(is.numeric), ~ sum(., na.rm = TRUE)), .groups = "drop")
 
 
-#write_csv(phoenix_pipeline_df, "Dataout/new_phoenix_pipeline.csv")
 
 # CREATE DATASETS-----------------------------
 #1. Pipeline ----------------------
@@ -144,12 +88,6 @@ pipeline_dataset <- active_awards_df |>
     left_join(phoenix_pipeline_df, by = c("award_number", "period")) |> 
     left_join(subobligation_summary_df, by = c("award_number", "period", "program_area")) |> 
     left_join(phoenix_transaction_df, by = c("award_number", "period", "program_area"))
-
-
-#pipeline_dataset <- create_pipeline_dataset() #|> 
-   # left_join(phoenix_transaction_cumulative_df, by = c("award_number", 
-    #                                                    "active_awards_fiscal_year" = "fiscal_year",
-   #                                                     "program_area")) 
 
 write_csv(pipeline_dataset,"Dataout/pipeline.csv")
 
